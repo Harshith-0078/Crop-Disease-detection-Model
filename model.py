@@ -24,18 +24,16 @@ def build_model(num_classes: int = NUM_CLASSES, pretrained: bool = True) -> nn.M
     model = models.mobilenet_v3_large(weights=weights)
     in_features = model.classifier[3].in_features
     
-    # Custom classification head
-    model.classifier[3] = nn.Sequential(
-        nn.Dropout(p=0.3),
-        nn.Linear(in_features, num_classes)
-    )
+    # Standard classification layer
+    model.classifier[3] = nn.Linear(in_features, num_classes)
     return model
 
 class PlantDiseaseClassifier:
     def __init__(self, model_path: str = "plant_disease_model.pth"):
         self.model_path = model_path
         self.device = DEVICE
-        self.classes = DISEASE_CLASSES
+        self.classes = list(DISEASE_CLASSES)
+        self.is_trained = False
         self.model = self._load_model()
 
     def _load_model(self) -> nn.Module:
@@ -44,17 +42,33 @@ class PlantDiseaseClassifier:
         if os.path.exists(self.model_path):
             try:
                 checkpoint = torch.load(self.model_path, map_location=self.device)
-                if isinstance(checkpoint, dict) and "model_state_dict" in checkpoint:
-                    model.load_state_dict(checkpoint["model_state_dict"])
-                    if "classes" in checkpoint:
-                        self.classes = checkpoint["classes"]
-                elif isinstance(checkpoint, dict):
-                    model.load_state_dict(checkpoint)
-                print(f"[OK] Successfully loaded custom trained model from {self.model_path}")
+                state_dict = checkpoint.get("model_state_dict", checkpoint) if isinstance(checkpoint, dict) else checkpoint
+                
+                # Check output layer shape in checkpoint
+                if "classifier.3.weight" in state_dict:
+                    out_classes = state_dict["classifier.3.weight"].shape[0]
+                    if out_classes == 39 and len(self.classes) == 38:
+                        if "Background_without_leaves" not in self.classes:
+                            self.classes.append("Background_without_leaves")
+                            self.classes.sort()
+                    model = build_model(num_classes=len(self.classes), pretrained=False)
+                elif "classifier.3.1.weight" in state_dict:
+                    # Alternative sequential classifier head format
+                    out_classes = state_dict["classifier.3.1.weight"].shape[0]
+                    in_feat = model.classifier[3].in_features
+                    model.classifier[3] = nn.Sequential(nn.Dropout(p=0.3), nn.Linear(in_feat, out_classes))
+
+                model.load_state_dict(state_dict, strict=False)
+                if isinstance(checkpoint, dict) and "classes" in checkpoint:
+                    self.classes = checkpoint["classes"]
+                self.is_trained = True
+                print(f"[OK] Successfully loaded trained weights from '{self.model_path}' ({len(self.classes)} classes).")
             except Exception as e:
+                self.is_trained = False
                 print(f"[!] Warning: Could not load checkpoint ({e}). Using initialized backbone.")
         else:
-            print(f"[*] No checkpoint found at '{self.model_path}'. Running in evaluation / demo mode.")
+            self.is_trained = False
+            print(f"[*] No checkpoint found at '{self.model_path}'. Running with untrained weights.")
             
         model = model.to(self.device)
         model.eval()
