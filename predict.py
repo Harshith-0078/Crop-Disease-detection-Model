@@ -7,6 +7,7 @@ if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from model import PlantDiseaseClassifier
+from severity import calculate_disease_severity
 
 def run_prediction(image_path: str, model_path: str = "plant_disease_model.pth", topk: int = 3):
     if not os.path.exists(image_path):
@@ -17,13 +18,17 @@ def run_prediction(image_path: str, model_path: str = "plant_disease_model.pth",
     classifier = PlantDiseaseClassifier(model_path=model_path)
     predictions = classifier.predict(image_path, topk=topk)
 
+    top_pred = predictions[0]
+    is_healthy = "healthy" in top_pred["raw_class"].lower()
+    severity = calculate_disease_severity(image_path, is_healthy=is_healthy)
+
     print("\n" + "=" * 60)
     print("PLANT HEALTH DIAGNOSIS REPORT")
     print("=" * 60)
 
-    top_pred = predictions[0]
     print(f"\nPrimary Diagnosis : {top_pred['label']}")
-    print(f"Confidence Score  : {top_pred['confidence']:.2f}%\n")
+    print(f"Confidence Score  : {top_pred['confidence']:.2f}%")
+    print(f"Disease Severity  : {severity['severity_score']:.2f}% ({severity['stage']})\n")
 
     details = top_pred["details"]
     print(f"Target Crop       : {details.get('crop', 'N/A')}")

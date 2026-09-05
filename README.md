@@ -9,6 +9,7 @@ FloraGuard is an end-to-end Machine Learning system for automated plant leaf dis
 - [`app.py`](file:///c:/Users/kappa/OneDrive/Desktop/Python/PLANT/app.py) : Interactive Web Application (Streamlit) for photo diagnosis & disease encyclopedia.
 - [`predict.py`](file:///c:/Users/kappa/OneDrive/Desktop/Python/PLANT/predict.py) : Fast CLI tool to predict disease and view treatment remedies for any leaf image.
 - [`model.py`](file:///c:/Users/kappa/OneDrive/Desktop/Python/PLANT/model.py) : PyTorch MobileNetV3 model architecture, preprocessing, and inference pipeline.
+- [`severity.py`](file:///c:/Users/kappa/OneDrive/Desktop/Python/PLANT/severity.py) : Computer vision leaf segmentation, disease percentage severity scoring, and lesion damage heatmap overlay.
 - [`disease_database.py`](file:///c:/Users/kappa/OneDrive/Desktop/Python/PLANT/disease_database.py) : Comprehensive knowledge base of 38 plant diseases, symptoms, causes, organic and chemical treatments.
 - [`train.py`](file:///c:/Users/kappa/OneDrive/Desktop/Python/PLANT/train.py) : Full training script with data augmentation, Cosine Annealing LR scheduling, and metric plots.
 - [`requirements.txt`](file:///c:/Users/kappa/OneDrive/Desktop/Python/PLANT/requirements.txt) : Python dependencies.

@@ -22,6 +22,8 @@ datasets/
 
 # Logs and temp files
 *.log
+*.exe
+*.pptx
 .vscode/
 .idea/
 *.DS_Store

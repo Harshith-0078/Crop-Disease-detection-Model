@@ -3,6 +3,7 @@ import streamlit as st
 from PIL import Image
 from model import PlantDiseaseClassifier
 from disease_database import DISEASE_INFO, format_class_name
+from severity import calculate_disease_severity
 
 # Page configuration
 st.set_page_config(
@@ -111,11 +112,14 @@ if app_mode == "Disease Diagnostic":
     with col2:
         st.subheader("2. Diagnostic Report")
         if analyze_button and image_to_process is not None:
-            with st.spinner("Analyzing leaf patterns using Deep Convolutional Neural Network..."):
+            with st.spinner("Analyzing leaf patterns and computing disease severity..."):
                 results = classifier.predict(image_to_process, topk=3)
                 top = results[0]
                 details = top["details"]
                 is_healthy = "healthy" in top["raw_class"].lower()
+
+                # Disease Severity Calculation
+                severity_info = calculate_disease_severity(image_to_process, is_healthy=is_healthy)
 
                 # Status Badge
                 badge_html = (
@@ -124,12 +128,25 @@ if app_mode == "Disease Diagnostic":
                     else f'<span class="badge-diseased">Disease Detected</span>'
                 )
                 st.markdown(f"### {top['label']} {badge_html}", unsafe_allow_html=True)
-                st.progress(min(top["confidence"] / 100.0, 1.0), text=f"Confidence: {top['confidence']:.2f}%")
+
+                # Diagnostic & Severity Metrics
+                m1, m2 = st.columns(2)
+                with m1:
+                    st.metric(label="Model Confidence", value=f"{top['confidence']:.2f}%")
+                    st.progress(min(top["confidence"] / 100.0, 1.0))
+                with m2:
+                    st.metric(
+                        label="Disease Severity", 
+                        value=f"{severity_info['severity_score']:.2f}%", 
+                        delta=severity_info["stage"], 
+                        delta_color="off" if is_healthy else "inverse"
+                    )
+                    st.progress(min(severity_info["severity_score"] / 100.0, 1.0))
 
                 st.markdown("---")
                 
                 # Tabbed Details
-                t1, t2, t3 = st.tabs(["Overview & Symptoms", "Prevention", "Treatments"])
+                t1, t2, t3, t4 = st.tabs(["Overview & Symptoms", "Prevention", "Treatments", "Severity & Lesion Map"])
                 
                 with t1:
                     st.markdown(f"**Crop:** `{details.get('crop', 'Unknown')}`")
@@ -142,6 +159,18 @@ if app_mode == "Disease Diagnostic":
 
                 with t3:
                     st.success(f"**Remedies & Treatment Strategies:**\n\n{details.get('treatment', 'N/A')}")
+
+                with t4:
+                    st.markdown(f"**Severity Score:** `{severity_info['severity_score']:.2f}%` &nbsp;|&nbsp; **Clinical Stage:** `{severity_info['stage']}`")
+                    if is_healthy:
+                        st.success("No disease lesions detected on the foliage surface. The leaf tissue is in healthy condition.")
+                    else:
+                        st.caption("Computer vision segmentation highlights necrotic and chlorotic tissue damage:")
+                        c_img1, c_img2 = st.columns(2)
+                        with c_img1:
+                            st.image(image_to_process, caption="Original Input Photo", use_container_width=True)
+                        with c_img2:
+                            st.image(severity_info["overlay_image"], caption="Lesion Damage Heatmap Overlay", use_container_width=True)
 
                 # Alternative Possibilities
                 if len(results) > 1:
